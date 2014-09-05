@@ -1,26 +1,27 @@
 (* ::Package:: *)
 
-(* 	Plots that meet Keyser Lab standarts for plots.
+(* 	Plots that meet Keyser Lab standards for plots.
 	---
 	There are two types:
-	K* - ones favored by Karolis 
-	O* - ones mimic OriginPro style, favored by Ulrich
+	OListPlot - plots mimicking OriginPro style with perfect error bars
+	KListPlot - Modern visualisation by Karolis
 
-	Vesrions:
-	1.0 - intial realease. 
+	Versions:
+	1.0 - initial release. 
 	2.0b1 - 2014-09-05 - Replaced KTicks with modified version of CustomTicks
 	2.0b2 - 2014-09-05 - Added KPlot theme that captures most important style elements
 	2.0b3 - 2014-09-05 - Added RoundPlotTicks for rounding tick ends
+	2.0b3 - 2014-09-05 - Removed dependency on Wolframs ErrorBarPlots`
+	2.0 - 2014-09-05 - Updated OListPlot and KListPlot
  *)
 
-BeginPackage["KPlots`", {"ErrorBarPlots`", "CustomTicks`"}]
+BeginPackage["KPlots`", {"CustomTicks`"}]
 
 KListPlot::usage = "KListPlot[data_, ErrorBars->..., opt->...] list plot for data";
-OListPlot::usage = "OListPlot[data_, ErrorBars->..., opt->...] list plot for data in Origin style!";
+OListPlot::usage = "OListPlot[data_, ErrorBars->..., opt->...] list plot for data in Origin style. Supports all sorts of markers and standard error-bars";
 FastListPlot::usage = "FastListPlot[data_] will perform fast plotting for large data sets";
 
-KPlotStyle::usage = "gives the style that makes plot look in awesome style";
-OPlotStyle::usage = "gives the style that makes plot look in OriginPro style";
+KPlotsTheme::usage = "KPlotsTheme can be used to pass as list of options or can be applied as plot theme: PlotTheme -> \"KPlots\" ";
 
 ErrorBars::usage = "Option for providing Error Bars directly into KListPlot or OListPlot";
 ErrorBarPlotStyle::usage = "Option for specifying error bar style";
@@ -39,10 +40,33 @@ RoundPlotTicks::usage = "Rounds[plot] rounds ticks and shows final look of the p
 KPlots::errSameLength = "plotted data must be the same length as error array";
 
 
-
+(* Implementations *)
 Begin["`Private`"]
 
-(* Implementations *)
+
+(* ==============================  BEAUTIFUL PLOT THEME ================================ *)
+
+SetOptions[ LinTicks,
+	MinorTickLength -> 0.009,
+	MajorTickLength -> 0.015,
+	NumberOfMinorTicks -> 1
+];
+
+KPlotsTheme := { 
+	Frame -> True,
+	FrameStyle -> Directive[Black, 13, FontFamily -> "Helvetica Neue", AbsoluteThickness[1.5]],
+	FrameTicks ->
+    	{{LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &},
+     	 {LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &}},
+	GridLines -> None,
+	ImageSize -> 350
+};
+
+(* add a theme compatible with in-built ones *)
+System`PlotThemeDump`resolvePlotTheme["KPlots", "Plot" | "ListPlot"] :=
+	Themes`SetWeight[ KPlotsTheme, System`PlotThemeDump`$ComponentWeight];
+
+
 
 (* ==============================  ERROR BAR DRAWING FUNCTION ================================ *)
 
@@ -88,109 +112,99 @@ KErrorBarFunction[size_] := Function[
 	]
 ]
 
-
-(* ==============================  BEAUTIFUL PLOT THEME ================================ *)
-
-SetOptions[ LinTicks,
-	MinorTickLength -> 0.009,
-	MajorTickLength -> 0.015,
-	NumberOfMinorTicks -> 1
-];
-
-(* add a theme compatible with in-built ones *)
-System`PlotThemeDump`resolvePlotTheme["KPlots", "Plot" | "ListPlot"] :=
-	Themes`SetWeight[ { 
-	Frame -> True,
-	FrameStyle -> Directive[Black, 13, FontFamily -> "Helvetica Neue", AbsoluteThickness[1.5]],
-	FrameTicks ->
-    	{{LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &},
-     	 {LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &}},
-	GridLines -> None
-   }, System`PlotThemeDump`$ComponentWeight];
-
-
-(* ==============================  MODERN PLOT WITH ERRORS ================================ *)
-
-KPlotStyle := {
-	ErrorBars -> None,
-	ErrorBarPlotStyle -> Directive[Orange, Thin],
-	ErrorBarPlotStyleFilling -> Directive[Orange, Opacity[0.1]],
-	ErrorBarInterpolationOrder -> 2,
-	PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 14},
-	MeshShading -> {Red,Blue},
-	PlotTheme -> "KPlots"
-}
-
-KListPlot[data_, opt : OptionsPattern[{KPlotStyle,ListPlot}]] := Module[
-	{errorData, errorsPlot, shadowRect},
-  
-	errorsPlot = If[ ! VectorQ @ OptionValue["Errors"] , {},
-		If[Length @ OptionValue["Errors"] != Length @ data, Message[KPlots::errSameLength]];
-		errorData = Transpose @ {data[[;; , 1]] , data[[;; , 2]] - OptionValue["Errors"], data[[;; , 2]] + OptionValue["Errors"]} ;
-		ListPlot[{errorData[[;; , {1, 2}]], errorData[[;; , {1, 3}]]},
-			Filling -> {1 -> {2}},
-			Joined -> True ,
-			InterpolationOrder -> OptionValue["ErrorInterpolationOrder"],
-			FillingStyle -> OptionValue["ErrorFillingStyle"],
-			PlotStyle -> OptionValue["ErrorPlotStyle"]
-		]
-	];
-
-  Show[
-  	errorsPlot,
-		ListPlot[data, 
-			Evaluate@FilterRules[ {opt}, Options[ListPlot]],
-			Evaluate@FilterRules[ KPlotStyle, Options[ListPlot]],
-			Joined -> True,
-			Mesh -> All
-		],
-
-		Evaluate@FilterRules[ {opt}, Options[Graphics]],
-		Evaluate@FilterRules[ KPlotStyle, Options[Graphics]]
-  ]
-]
-
-
 (* ==============================  ORIGIN PLOT WITH ERRORS ================================ *)
 
-OPlotStyle := {
-	ErrorBars -> None,
-	ErrorBarWidth -> 1.2,
-	ErrorBarStyle -> AbsoluteThickness[1.5],
-	PlotStyle -> Directive[Black],
-	PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 13}, 
-	Mesh -> All,
-	Joined -> False,
-	PlotTheme -> "KPlots"
-}
+Options[OListPlot] = Normal@Join[
+	(* Association@Options[ListPlot], *)
+	Association@{
+		MaxPlotPoints->Infinity,
+		PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 13} , 
+		Mesh -> All,
+		Joined -> False,
+		PlotStyle -> Directive[Black],
+		PlotTheme -> "KPlots",
+		ErrorBars -> None,
+		ErrorBarWidth -> 1.4,
+		ErrorBarStyle -> AbsoluteThickness[1.2]
+	}	
+];
 
-OListPlot[data_, opt : OptionsPattern[{OPlotStyle,ListPlot}]] := Module[
-	{errorData, errorsPlot, dataPlot},
+OListPlot[data_, opts: OptionsPattern[OListPlot]] := Module[
+	{
+		fullOpts = Join[ Association@Options[OListPlot], Association@{opts} ],
+		errorsPlot, dataPlot
+	},
 
 	If[ !MatrixQ@data, Print["KPlots error: OListPlot data must be a matrix"]];
 	dataPlot = ListPlot[
 		data ,
-		Evaluate@FilterRules[ {opt}, Options[ListPlot]],
-		Evaluate@FilterRules[ OPlotStyle, Options[ListPlot]]
+		Evaluate@FilterRules[ Normal@fullOpts, Options[ListPlot]]
 	];
 
-	errorsPlot = If[ ! VectorQ @ OptionValue["Errors"] , {} ,
-		If[Length @ OptionValue["Errors"] != Length @ data, Message[KPlots::errSameLength]];
-		errorData = Table[{ data[[i]] , ErrorBar[ OptionValue["Errors"][[i]] ]}, {i, Length[data]}];
+	errorsPlot = If[ ! VectorQ @ fullOpts[ErrorBars] , {} ,
+		If[Length @ fullOpts[ErrorBars] != Length @ data, Message[KPlots::errSameLength]];
+		errorData = Table[{ data[[i]] , ErrorBar[ fullOpts[ErrorBars][[i]] ]}, {i, Length[data]}];
 		Graphics[ Flatten[ Join[ 
-			{PlotStyle /. {opt}/. OPlotStyle}  ,
-			{"ErrorBarStyle" /. {opt} /. OPlotStyle}  ,
-  		KErrorBarFunction[OptionValue["ErrorBarWidth"]][#[[1]], #[[2]]] & /@ errorData
-  	] , 1]]
+			{fullOpts[PlotStyle]},
+			{fullOpts[ErrorBarStyle]},
+  		KErrorBarFunction[fullOpts[ErrorBarWidth]][#[[1]], #[[2]]] & /@ errorData
+  		] , 1]   ]
 	];
   
 	Show[
 		dataPlot,
-		errorsPlot,
-
-		Evaluate@FilterRules[ {opt}, Options[Graphics]],
-		Evaluate@FilterRules[ OPlotStyle, Options[Graphics]]
+		errorsPlot
+		(* Evaluate@FilterRules[ Normal@fullOpts, Options[Graphics]] (*does not work with PlotTheme*) *)
 	]
+];
+
+
+(* ==============================  MODERN PLOT WITH ERRORS ================================ *)
+
+Options[KListPlot] = Normal@Join[
+	(* Association@Options[ListPlot], *)
+	Association@{
+		MaxPlotPoints->Infinity,
+		PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 14},
+		MeshShading -> {Red,Blue},
+		Mesh -> All,
+		Joined -> True,
+		PlotStyle -> Directive[KColor[5]],
+		PlotTheme -> "KPlots",
+		ErrorBars -> None,
+		ErrorBarPlotStyle -> Directive[Orange, Thin],
+		ErrorBarPlotStyleFilling -> Directive[Orange, Opacity[0.1]],
+		ErrorBarInterpolationOrder -> 2
+	}	
+];
+
+
+KListPlot[data_, opts: OptionsPattern[]] := Module[ 
+	{
+		fullOpts = Join[ Association@Options[KListPlot], Association@{opts} ],
+		errorData, errorsPlot
+	},
+  
+	errorsPlot = If[ ! VectorQ @ fullOpts[ErrorBars] , {},
+		If[Length @ fullOpts[ErrorBars] != Length @ data, Message[KPlots::errSameLength]];
+		errorData = Transpose @ {data[[;; , 1]] , data[[;; , 2]] - fullOpts[ErrorBars], data[[;; , 2]] + fullOpts[ErrorBars]} ;
+		ListPlot[{errorData[[;; , {1, 2}]], errorData[[;; , {1, 3}]]},
+			Filling -> {1 -> {2}},
+			Joined -> True ,
+			InterpolationOrder -> fullOpts[ErrorBarInterpolationOrder],
+			FillingStyle -> fullOpts[ErrorBarPlotStyleFilling],
+			PlotStyle -> fullOpts[ErrorBarPlotStyle]
+		]
+	];
+
+  	Show[
+		errorsPlot,
+		ListPlot[data, 
+			Evaluate@FilterRules[ Normal@fullOpts, Options[ListPlot]]
+		],
+		KPlotsTheme,
+		Evaluate@FilterRules[ Normal@fullOpts,  Options[Graphics]]
+  ]
 ]
 
 
