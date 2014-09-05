@@ -12,14 +12,16 @@
 	2.0b2 - 2014-09-05 - Added KPlot theme that captures most important style elements
 	2.0b3 - 2014-09-05 - Added RoundPlotTicks for rounding tick ends
 	2.0b3 - 2014-09-05 - Removed dependency on Wolframs ErrorBarPlots`
-	2.0 - 2014-09-05 - Updated OListPlot and KListPlot
+	2.0   - 2014-09-05 - Updated OListPlot and KListPlot
+	2.1   - 2014-09-05 - Added CustomMarkers that survive PDF export/import
  *)
 
-BeginPackage["KPlots`", {"CustomTicks`"}]
+BeginPackage["KPlots`", {"CustomTicks`", "CustomMarkers`"}]
 
 KListPlot::usage = "KListPlot[data_, ErrorBars->..., opt->...] list plot for data";
 OListPlot::usage = "OListPlot[data_, ErrorBars->..., opt->...] list plot for data in Origin style. Supports all sorts of markers and standard error-bars";
 FastListPlot::usage = "FastListPlot[data_] will perform fast plotting for large data sets";
+KPlot::usage = "KPlot[] acts as Plot[] with automatic style and range parameters"
 
 KPlotsTheme::usage = "KPlotsTheme can be used to pass as list of options or can be applied as plot theme: PlotTheme -> \"KPlots\" ";
 
@@ -137,7 +139,7 @@ OListPlot[data_, opts: OptionsPattern[OListPlot]] := Module[
 
 	If[ !MatrixQ@data, Print["KPlots error: OListPlot data must be a matrix"]];
 	dataPlot = ListPlot[
-		data ,
+		FilterWithinPlotRegion[ data , Lookup[fullOpts, PlotRange, None] ], 
 		Evaluate@FilterRules[ Normal@fullOpts, Options[ListPlot]]
 	];
 
@@ -147,7 +149,7 @@ OListPlot[data_, opts: OptionsPattern[OListPlot]] := Module[
 		Graphics[ Flatten[ Join[ 
 			{fullOpts[PlotStyle]},
 			{fullOpts[ErrorBarStyle]},
-  		KErrorBarFunction[fullOpts[ErrorBarWidth]][#[[1]], #[[2]]] & /@ errorData
+  			KErrorBarFunction[fullOpts[ErrorBarWidth]][#[[1]], #[[2]]] & /@ errorData
   		] , 1]   ]
 	];
   
@@ -207,6 +209,16 @@ KListPlot[data_, opts: OptionsPattern[]] := Module[
   ]
 ]
 
+(* ==============================  MODERN PLOT ================================ *)
+
+KPlot[any__] := Module[ 
+	{range},
+	(* slow because draws twice*)
+	range =  PlotRange /. InputForm[ Plot[Evaluate@any] ][[1,2]] ;
+	Plot[Evaluate@any, RegionFunction -> IsWithinPlotRegion@range, Evaluate@KPlotsTheme ] 
+]
+
+
 
 (* ==============================  FAST LIST PLOT  ================================ *)
 
@@ -239,11 +251,29 @@ RoundPlotTicks[plot_] :=
 			CurveClosed -> {0}] :> {CapForm["Round"], JoinedCurve[{{{0, 2, 0}}}, x, CurveClosed -> {0}]};
 
 
-(* helper methods *)
+(* ==============================  COLORS ================================ *)
 
 RectMarker[size_] := Rectangle[{{-size/2,-size/2},{size/2,size/2}}];
 
+(* remove elements outside plotting range *)
+FilterWithinPlotRegion[data_, _ ] = data;
+FilterWithinPlotRegion[data_?MatrixQ, region_] := Block[ 
+	{ within = IsWithinPlotRegion[region] },
+  	Select[data, within[#[[1]], #[[2]]] &]
+];
 
+IsWithinPlotRegion[ _ ] := Function[{x, y}, True ];
+IsWithinPlotRegion[{{xMin_?NumericQ, xMax_?NumericQ}, {yMin_?NumericQ, yMax_?NumericQ}}, padding_?NumericQ] := Module[
+	{
+		padSizeX = If[ Infinity === Max@Abs@{xMin, xMax} , 0, (xMax - xMin)*padding ], 
+		padSizeY = If[ Infinity === Max@Abs@{yMin, yMax} , 0, (yMax - yMin)*padding ]
+	},
+	Function[{x, y}, (yMin+padSizeY <= y <= yMax-padSizeY) && (xMin+padSizeX <= x <= xMax-padSizeX)]
+]
+IsWithinPlotRegion[{{xMin_?NumericQ, xMax_?NumericQ}, {yMin_?NumericQ, yMax_?NumericQ}}] :=
+	IsWithinPlotRegion[{{xMin, xMax}, {yMin, yMax}}, 0.01]; 
+IsWithinPlotRegion[ {yMin_?NumericQ, yMax_?NumericQ}] := 
+	IsWithinPlotRegion[{{-Infinity, Infinity}, {yMin, yMax}}]
 
 (* ==============================  xkcd PLOT - for fun ================================ *)
 
