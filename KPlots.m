@@ -9,47 +9,42 @@
 	Vesrions:
 	1.0 - intial realease. 
 	2.0b1 - 2014-09-05 - Replaced KTicks with modified version of CustomTicks
+	2.0b2 - 2014-09-05 - Added KPlot theme that captures most important style elements
+	2.0b3 - 2014-09-05 - Added RoundPlotTicks for rounding tick ends
  *)
 
 BeginPackage["KPlots`", {"ErrorBarPlots`", "CustomTicks`"}]
 
-KListPlot::usage = 
-	"KListPlot[data_, Errors->..., opt->...] list plot for data"
+KListPlot::usage = "KListPlot[data_, ErrorBars->..., opt->...] list plot for data";
+OListPlot::usage = "OListPlot[data_, ErrorBars->..., opt->...] list plot for data in Origin style!";
+FastListPlot::usage = "FastListPlot[data_] will perform fast plotting for large data sets";
 
-OListPlot::usage = 
-	"OListPlot[data_, Errors->..., opt->...] list plot for data in Origin style!"
+KPlotStyle::usage = "gives the style that makes plot look in awesome style";
+OPlotStyle::usage = "gives the style that makes plot look in OriginPro style";
 
-KPlotStyle::usage = 
-	"gives the style that makes plot look in Karolis style"
+ErrorBars::usage = "Option for providing Error Bars directly into KListPlot or OListPlot";
+ErrorBarPlotStyle::usage = "Option for specifying error bar style";
+ErrorBarPlotStyleFilling::usage = "Option for specifying error bar filling for KListPlot";
+ErrorBarInterpolationOrder::usage = "Option for specifying interpolation order for connected error bars";
+ErrorBarStyle::usage = "Option for choosing a style for drawing error bars";
+ErrorBarWidth::usage = "Option for error bar hat width"
 
-OPlotStyle::usage = 
-	"gives the style that makes plot look in OriginPro style"
+KErrorBarFunction::usage = "Custom function for drawing error bars - lines";
+KColor::usage = "KColor[int] gives a colour from selection of nice shades";
 
-FastListPlot::usage = 
-	"FastListPlot[data_] will perform fast ploting for large data sets"
-
-KErrorBarFunction::usage = 
-	"Custom function for drawing error bars - lines"
-
-KColor::usage = 
-	"KColor[int] gives a color from selecton of nice shades"
-
-xkcdify::usage = 
-	"converts plot into xkcd styled plot: "
+xkcdify::usage = "converts plot into xkcd styled plot: "; 
+RoundPlotTicks::usage = "Rounds[plot] rounds ticks and shows final look of the plot";
 
 (*error messages*)
-
-KPlots::errSameLength = "plotted data must be the same length as error array"
-
-
-Options[KTicks] = {Size -> 0.015, Labels -> True, Extra -> {}, 
-   Period -> Automatic, StartAt -> Automatic, At -> Automatic};
+KPlots::errSameLength = "plotted data must be the same length as error array";
 
 
 
 Begin["`Private`"]
 
 (* Implementations *)
+
+(* ==============================  ERROR BAR DRAWING FUNCTION ================================ *)
 
 (*specialisd function for preparing error bars*)
 FormatErrorBars[x_]:= Print["KPots error: unrecognised error bar: "~~ToString@x];
@@ -62,35 +57,11 @@ FormatErrorBars[x : ErrorBar[{_?NumberQ, _?NumberQ }]] :=
 FormatErrorBars[x : ErrorBar[{_?NumberQ, _?NumberQ }, {_?NumberQ, _?NumberQ }]] := 
 	{{x[[1,1]], x[[1,2]]} , {x[[2,1]], -x[[2,2]]}};
 
-
-KTicks[OptionsPattern[]][min_, max_] := 
-	Module[{size, startAt, period, at, mid},
-		size = OptionValue[Size];
-		period = If[ OptionValue[Period] === Automatic,
-			(max - min)/4,
-			OptionValue[Period]
-		];
-		startAt = If[OptionValue[StartAt] === Automatic, 
-			Ceiling[min, period],
-			OptionValue[StartAt]
-		];
-		at = If[ OptionValue[At] === Automatic,
-			Range[startAt, Floor[max - startAt, period] + startAt, period],
-			OptionValue[At]
-		];
-		mid = (at[[2 ;;]] + at[[;; -2]])/2;
-		Join[
-			Table[{i, If[OptionValue[Labels], i], {size, 0}}, {i, at}],
-			Table[{j, Null, {size*0.6, 0}}, {j, mid}],
-			{#, #, {size, 0}} & /@ OptionValue[Extra]
-		]
-]
-
 (* KErrorBarFunction := Function[{coords, errs}, {Opacity[0.2], 
     Rectangle[coords + {errs[[1, 1]], errs[[2, 1]]}, 
      coords + {errs[[1, 2]], errs[[2, 2]]}]}] *)
-KErrorBarFunction[size_] := 
-Function[ {coords, errs} ,
+KErrorBarFunction[size_] := Function[ 
+	{coords, errs} ,
 	Module[ {xline, yline, x, y, xmin, xmax, ymin, ymax},
 		x = coords[[1]];
 		y = coords[[2]];
@@ -118,17 +89,36 @@ Function[ {coords, errs} ,
 ]
 
 
-KPlotStyle := {
-	"Errors" -> None,
-	"ErrorPlotStyle" -> Directive[Orange, Thin],
-	"ErrorFillingStyle" -> Directive[Orange, Opacity[0.1]],
-	"ErrorInterpolationOrder" -> 2,
-	"ShadowFrom" -> None,
-	PlotStyle -> Directive[Opacity[1]],
-	PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 14},
-	FrameStyle -> Directive[FontSize ->13],
+(* ==============================  BEAUTIFUL PLOT THEME ================================ *)
+
+SetOptions[ LinTicks,
+	MinorTickLength -> 0.009,
+	MajorTickLength -> 0.015,
+	NumberOfMinorTicks -> 1
+];
+
+(* add a theme compatible with in-built ones *)
+System`PlotThemeDump`resolvePlotTheme["KPlots", "Plot" | "ListPlot"] :=
+	Themes`SetWeight[ { 
 	Frame -> True,
-	MeshShading -> {Red,Blue}
+	FrameStyle -> Directive[Black, 13, FontFamily -> "Helvetica Neue", AbsoluteThickness[1.5]],
+	FrameTicks ->
+    	{{LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &},
+     	 {LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &}},
+	GridLines -> None
+   }, System`PlotThemeDump`$ComponentWeight];
+
+
+(* ==============================  MODERN PLOT WITH ERRORS ================================ *)
+
+KPlotStyle := {
+	ErrorBars -> None,
+	ErrorBarPlotStyle -> Directive[Orange, Thin],
+	ErrorBarPlotStyleFilling -> Directive[Orange, Opacity[0.1]],
+	ErrorBarInterpolationOrder -> 2,
+	PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 14},
+	MeshShading -> {Red,Blue},
+	PlotTheme -> "KPlots"
 }
 
 KListPlot[data_, opt : OptionsPattern[{KPlotStyle,ListPlot}]] := Module[
@@ -145,26 +135,9 @@ KListPlot[data_, opt : OptionsPattern[{KPlotStyle,ListPlot}]] := Module[
 			PlotStyle -> OptionValue["ErrorPlotStyle"]
 		]
 	];
-  
-	shadowRect = If[ ! NumberQ @ OptionValue["ShadowFrom"] , {},
-		Directive[ {rangeY, rangeX, errMax},
-			rangeX = {Min@data[[;; , 1]] , Max@data[[;; , 1]]} ;
-			rangeY = {Min@data[[;; , 2]] , Max@data[[;; , 2]]} ;
-			errMax = 1.02 Max @ {Max@error , 0} ;
-   		If[ rangeX[[2]] <= OptionValue["ShadowFrom"] , {},
-		    Graphics[{
-		      White, Opacity[0.7],
-		      Rectangle[{OptionValue["ShadowFrom"], 
-		        rangeY[[1]] - errMax}, {rangeX[[2]]*1.01, 
-		        rangeY[[2]] + errMax}]
-		    }] 
-	    ]
-	  ]
-  ]; 
 
   Show[
   	errorsPlot,
-   
 		ListPlot[data, 
 			Evaluate@FilterRules[ {opt}, Options[ListPlot]],
 			Evaluate@FilterRules[ KPlotStyle, Options[ListPlot]],
@@ -172,27 +145,23 @@ KListPlot[data_, opt : OptionsPattern[{KPlotStyle,ListPlot}]] := Module[
 			Mesh -> All
 		],
 
-		shadowRect,
-
 		Evaluate@FilterRules[ {opt}, Options[Graphics]],
 		Evaluate@FilterRules[ KPlotStyle, Options[Graphics]]
   ]
 ]
 
 
-(* ---- Origin Pro style ---- *)
+(* ==============================  ORIGIN PLOT WITH ERRORS ================================ *)
 
 OPlotStyle := {
-	"Errors" -> None,
-	"ShadowFrom" -> None,
-	PlotStyle -> Directive[Opacity[1], Black],
+	ErrorBars -> None,
+	ErrorBarWidth -> 1.2,
+	ErrorBarStyle -> AbsoluteThickness[1.5],
+	PlotStyle -> Directive[Black],
 	PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 13}, 
-	FrameStyle -> Directive[14, Black, Thickness[0.0035], FontFamily -> "Helvetica"],
 	Mesh -> All,
 	Joined -> False,
-	Frame -> True,
-	"ErrorBarWidth" -> 1.2,
-	"ErrorBarStyle" -> Thickness[0.0045]
+	PlotTheme -> "KPlots"
 }
 
 OListPlot[data_, opt : OptionsPattern[{OPlotStyle,ListPlot}]] := Module[
@@ -225,36 +194,54 @@ OListPlot[data_, opt : OptionsPattern[{OPlotStyle,ListPlot}]] := Module[
 ]
 
 
+(* ==============================  FAST LIST PLOT  ================================ *)
 
 (* from: http://mathematica.stackexchange.com/questions/140/listplot-plotting-large-data-fast *)
-FastListPlot[data_,opts:OptionsPattern[]] := Module[
+FastListPlot[data_, opts:OptionsPattern[]] := Module[
     {interp},
-
     interp=Interpolation[data];
     Plot[interp[x],{x,interp[[1,1,1]],interp[[1,1,2]]},opts]
 ]
 
-KColor[i_Integer] := {
-	RGBColor[ 54/255,  54/255, 54/255],
-	RGBColor[  5/255, 153/255, 176/255],
-	RGBColor[164/255, 189/255, 10/255],
-	RGBColor[255/255, 166/255, 21/255],
-	RGBColor[255/255, 46/255, 0/255]
-}[[i]]
+(* ==============================  COLORS ================================ *)
+
+KColor[i_Integer] := Switch[ i, 
+	1, RGBColor[ 54/255,  54/255,  54/255],
+	2, RGBColor[  5/255, 153/255, 176/255],
+	3, RGBColor[164/255, 189/255,  10/255],
+	4, RGBColor[255/255, 166/255,  21/255],
+	5, RGBColor[255/255,  46/255,   0/255],
+	_, RGBColor[0, 0, 0]
+];
+
+
+(* ==============================  COLORS ================================ *)
+
+(* function rounds plots ticks and also makes it loo like the final PDF plot *)
+(* from http://mathematica.stackexchange.com/questions/58866/how-to-round-tick-line-ends-in-the-plots *)
+RoundPlotTicks[plot_] := 
+	First@ImportString[ExportString[plot, "PDF"], "PDF"] /. 
+		JoinedCurve[{{{0, 2, 0}}}, x_, 
+			CurveClosed -> {0}] :> {CapForm["Round"], JoinedCurve[{{{0, 2, 0}}}, x, CurveClosed -> {0}]};
 
 
 (* helper methods *)
 
-RectMarker[size_] := Rectangle[{{-size/2,-size/2},{size/2,size/2}}]
+RectMarker[size_] := Rectangle[{{-size/2,-size/2},{size/2,size/2}}];
+
+
+
+(* ==============================  xkcd PLOT - for fun ================================ *)
 
 (* xkcd plots from : http://mathematica.stackexchange.com/questions/11350/xkcd-style-graphs*)
-
 (*Thanks to belisarius& J.M.for refactoring*)
-split[{a_, b_}] := 
- If[a == b, {b}, 
-  With[{n = Ceiling[3 Norm[a - b]]}, Array[{n - #, #}/n &, n].{a, b}]]
 
-partition[{x_, y__}] := Partition[{x, x, y}, 2, 1]
+split[{a_, b_}] := If[ a == b, 
+	{b}, 
+	With[{n = Ceiling[3 Norm[a - b]]}, Array[{n - #, #}/n &, n].{a, b}]
+];
+
+partition[{x_, y__}] := Partition[{x, x, y}, 2, 1];
 
 nudge[L : {a_, b_}, d_] := Mean@L + d Cross[a - b];
 
