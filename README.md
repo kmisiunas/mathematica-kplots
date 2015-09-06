@@ -21,8 +21,9 @@ Academically perfected plots for Mathematica! Plots are optimised for PDF export
 
 <img width="411" alt="screen shot 2015-09-06 at 14 55 41" src="https://cloud.githubusercontent.com/assets/4820843/9704692/6ef482f0-54a7-11e5-944d-845fbcb06340.png">
 
-## Usage
+## Guidelines
 
+`ImageSize -> 350` is the standard width and it was designed to correspond to 8cm on smaller plots and 10cm for wider ones. 
 
 ## Requrements
 
