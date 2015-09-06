@@ -10,12 +10,16 @@ Academically perfected plots for Mathematica! Plots are optimised for PDF export
     << KPlots`
     ListPlot[
       Sin /@ Range[0, 4 Pi, 0.3],
-      FrameLabel -> { "angle", "amplitude"},
+      FrameLabel -> {"Phase (deg)", "Amplitude (mV)"},
       PlotMarkers -> CustomMarkers[6, 8, Orange],
       KPlotsTheme
     ]
 
-![demo_listplot](https://cloud.githubusercontent.com/assets/4820843/5002438/de12279a-69f8-11e4-8a52-ddb2af94a829.png)
+![demo_listplot](https://cloud.githubusercontent.com/assets/4820843/9704671/c79151dc-54a6-11e5-8b7b-136ed0c48cf6.png)
+
+    Export["list_plot.pdf", %]
+
+![demo_listplot_from_pdf](https://cloud.githubusercontent.com/assets/4820843/9704692/6ef482f0-54a7-11e5-944d-845fbcb06340.png)
 
 ## Usage
 
@@ -26,6 +30,8 @@ Academically perfected plots for Mathematica! Plots are optimised for PDF export
 
 ## Contributions 
 
-`CustomTicks.m` library was adapted from [Mark Caprio](http://physics.nd.edu/people/faculty/mark-caprio/) code. Thanks!
+`CustomTicks.m` library was adapted from [Mark Caprio code](http://scidraw.nd.edu/). Thanks!
 
 `xkcdify[plot_]` functions was adapted from [stackexchange discussion](http://mathematica.stackexchange.com/questions/11350/xkcd-style-graphs)
+
+`FastListPlot[]` function was adapted form [stackexchange discussion](http://mathematica.stackexchange.com/questions/140/listplot-plotting-large-data-fast)
