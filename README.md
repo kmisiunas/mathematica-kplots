@@ -15,11 +15,11 @@ Academically perfected plots for Mathematica! Plots are optimised for PDF export
       KPlotsTheme
     ]
 
-![demo_listplot](https://cloud.githubusercontent.com/assets/4820843/9704671/c79151dc-54a6-11e5-8b7b-136ed0c48cf6.png)
+<img width="366" alt="screen shot 2015-09-06 at 14 50 44" src="https://cloud.githubusercontent.com/assets/4820843/9704671/c79151dc-54a6-11e5-8b7b-136ed0c48cf6.png">
 
     Export["list_plot.pdf", %]
 
-![demo_listplot_from_pdf](https://cloud.githubusercontent.com/assets/4820843/9704692/6ef482f0-54a7-11e5-944d-845fbcb06340.png)
+<img width="411" alt="screen shot 2015-09-06 at 14 55 41" src="https://cloud.githubusercontent.com/assets/4820843/9704692/6ef482f0-54a7-11e5-944d-845fbcb06340.png">
 
 ## Usage
 
