@@ -1,11 +1,11 @@
 mathematica-kplots
 ==================
 
-Customised plotting functions for Mathematica
+Academically perfected plots for Mathematica!
 
 ## Requrements
 
- - Mathematica 10
+ - Mathematica 10 or later
 
 ## Examples
 
@@ -20,3 +20,12 @@ Customised plotting functions for Mathematica
     ]
 
 ![demo_listplot](https://cloud.githubusercontent.com/assets/4820843/5002438/de12279a-69f8-11e4-8a52-ddb2af94a829.png)
+
+## Usage
+
+
+
+
+## Contributions 
+
+`CustomTicks.m` library was adapted from [Mark Caprio](http://physics.nd.edu/people/faculty/mark-caprio/) code. Thanks!
