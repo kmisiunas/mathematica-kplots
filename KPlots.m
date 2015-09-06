@@ -14,6 +14,7 @@
 	2.0b3 - 2014-09-05 - Removed dependency on Wolframs ErrorBarPlots`
 	2.0   - 2014-09-05 - Updated OListPlot and KListPlot
 	2.1   - 2014-09-05 - Added CustomMarkers that survive PDF export/import
+	2.2   - 2015-09-06 - Modified base of KPlotTheme to thinner lines and smaller font
  *)
 
 BeginPackage["KPlots`", {"CustomTicks`", "CustomMarkers`"}]
@@ -37,6 +38,8 @@ KColor::usage = "KColor[int] gives a colour from selection of nice shades";
 
 xkcdify::usage = "converts plot into xkcd styled plot: "; 
 RoundPlotTicks::usage = "Rounds[plot] rounds ticks and shows final look of the plot";
+StabiliseForPDF::usage = "Exports and reimports PDF to stabilise the image under export.";
+ToBlackBackground::usage = "converts an image plot to black background"
 
 (*error messages*)
 KPlots::errSameLength = "plotted data must be the same length as error array";
@@ -56,7 +59,7 @@ SetOptions[ LinTicks,
 
 KPlotsTheme := { 
 	Frame -> True,
-	FrameStyle -> Directive[Black, 13, FontFamily -> "Helvetica Neue", AbsoluteThickness[1.5]],
+	FrameStyle -> Directive[Black, 12, FontFamily -> "Helvetica Neue", AbsoluteThickness[1.0]],
 	FrameTicks ->
     	{{LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &},
      	 {LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &}},
@@ -155,7 +158,8 @@ OListPlot[data_, opts: OptionsPattern[OListPlot]] := Module[
   
 	Show[
 		dataPlot,
-		errorsPlot
+		errorsPlot,
+		dataPlot
 		(* Evaluate@FilterRules[ Normal@fullOpts, Options[Graphics]] (*does not work with PlotTheme*) *)
 	]
 ];
@@ -211,6 +215,7 @@ KListPlot[data_, opts: OptionsPattern[]] := Module[
 
 (* ==============================  MODERN PLOT ================================ *)
 
+(*deprecated*)
 KPlot[any__] := Module[ 
 	{range},
 	(* slow because draws twice*)
@@ -241,7 +246,7 @@ KColor[i_Integer] := Switch[ i,
 ];
 
 
-(* ==============================  COLORS ================================ *)
+(* ==============================  PDF functions ================================ *)
 
 (* function rounds plots ticks and also makes it loo like the final PDF plot *)
 (* from http://mathematica.stackexchange.com/questions/58866/how-to-round-tick-line-ends-in-the-plots *)
@@ -249,6 +254,9 @@ RoundPlotTicks[plot_] :=
 	First@ImportString[ExportString[plot, "PDF"], "PDF"] /. 
 		JoinedCurve[{{{0, 2, 0}}}, x_, 
 			CurveClosed -> {0}] :> {CapForm["Round"], JoinedCurve[{{{0, 2, 0}}}, x, CurveClosed -> {0}]};
+
+(*exports and reimports - makes it stable under illustrator importing Stabilise *)
+StabiliseForPDF[plot_] := First@ImportString[ExportString[plot, "PDF"], "PDF"];
 
 
 (* ==============================  COLORS ================================ *)
@@ -301,6 +309,10 @@ xkcdify[plot_Graphics] :=
     TextStyle -> {17, FontFamily -> "Humor Sans"}] /. 
    Line[pts_] :> {AbsoluteThickness[2], BSplineCurve@wiggle@pts} // 
   MapAt[# /. gap &, #, {1, 1}] &
+
+ToBlackBackground[img_Image] :=  
+  ImageApply[{Mod[#[[1]] + 0.5, 1], #[[2]], #[[3]]} &,  ColorConvert[ColorNegate@img, "HSB"]]
+
 
 End[ ]
 
