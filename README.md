@@ -1,11 +1,7 @@
 mathematica-kplots
 ==================
 
-Academically perfected plots for Mathematica!
-
-## Requrements
-
- - Mathematica 10 or later
+Academically perfected plots for Mathematica! Plots are optimised for PDF exports for embeding in LaTeX documments. 
 
 ## Examples
 
@@ -24,8 +20,12 @@ Academically perfected plots for Mathematica!
 ## Usage
 
 
+## Requrements
 
+ - Mathematica 10 or later
 
 ## Contributions 
 
 `CustomTicks.m` library was adapted from [Mark Caprio](http://physics.nd.edu/people/faculty/mark-caprio/) code. Thanks!
+
+`xkcdify[plot_]` functions was adapted from [stackexchange discussion](http://mathematica.stackexchange.com/questions/11350/xkcd-style-graphs)
