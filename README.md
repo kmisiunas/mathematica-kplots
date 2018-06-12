@@ -5,7 +5,7 @@ Academically perfected plots for Mathematica! Plots are optimised for PDF export
 
 ## Methods
 
-##ListPlotErrors[]  
+### ListPlotErrors[]  
 
     << KPlots`
 
