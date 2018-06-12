@@ -1,10 +1,14 @@
 (* ::Package:: *)
 
-(* 	Plots that meet Keyser Lab standards for plots.
+(* 	=== KPlots package ===
+
+    Scientific plots by Karolis Misiunas
+
+    Aim for consistent and clear scientific plots. Initially developed 
+    to meet the standards of Keyser Lab in Cambridge, but now available
+    for wider usage. 
+	
 	---
-	There are two types:
-	OListPlot - plots mimicking OriginPro style with perfect error bars
-	KListPlot - Modern visualisation by Karolis
 
 	Versions:
 	1.0 - initial release. 
@@ -15,17 +19,36 @@
 	2.0   - 2014-09-05 - Updated OListPlot and KListPlot
 	2.1   - 2014-09-05 - Added CustomMarkers that survive PDF export/import
 	2.2   - 2015-09-06 - Modified base of KPlotTheme to thinner lines and smaller font
+	2.3   - 2015-09-06 - ErrorBars option now suppots {x,y} or ErrorBar specifications
+	2.4   - 2018-04-05 - Helvetica Neue -> Helvetica for wider compatibility
+	3.0   - 2018-06-11 - Introduced ListPlotErrors[] and ScienceTheme[]. 
+						 Removed: KListPlot, KPlot, KPlotsTheme, xkcdify
  *)
 
 BeginPackage["KPlots`", {"CustomTicks`", "CustomMarkers`"}]
 
-KListPlot::usage = "KListPlot[data_, ErrorBars->..., opt->...] list plot for data";
-OListPlot::usage = "OListPlot[data_, ErrorBars->..., opt->...] list plot for data in Origin style. Supports all sorts of markers and standard error-bars";
+
+
+(* Important methods *)
+
+ListPlotErrors::usage = "ListPlotErrors[data, ErrorBars ->{...} ]"
+
+ScienceTheme::usage = "ScienceTheme[options] returns commonly used theme. Options:
+		\"Size\" -> 8.0,    (* output plot size in cm *)
+		\"Labels\" -> True, (* print tick labels *)
+		\"xticks\" -> Automatic, (* Y minor ticks *)
+		\"yticks\" -> Automatic, (* Y major ticks *)
+		\"Trim\" -> False, (* Trim the figure tightly *)
+		FontSize -> 8,
+		\"Scaling\" -> 0.6 (* Mathematica to Export scaling to Illustrator *)";
+ScienceThemeSmall::usage = "same as ScienceTheme[], but smaller";
+
 FastListPlot::usage = "FastListPlot[data_] will perform fast plotting for large data sets";
-KPlot::usage = "KPlot[] acts as Plot[] with automatic style and range parameters"
 
-KPlotsTheme::usage = "KPlotsTheme can be used to pass as list of options or can be applied as plot theme: PlotTheme -> \"KPlots\" ";
 
+(* Helper methods *)
+
+ErrorBar::usage = "Overwritten Mathematica's ErrorBar container. Sorry.";
 ErrorBars::usage = "Option for providing Error Bars directly into KListPlot or OListPlot";
 ErrorBarPlotStyle::usage = "Option for specifying error bar style";
 ErrorBarPlotStyleFilling::usage = "Option for specifying error bar filling for KListPlot";
@@ -36,14 +59,24 @@ ErrorBarWidth::usage = "Option for error bar hat width"
 KErrorBarFunction::usage = "Custom function for drawing error bars - lines";
 KColor::usage = "KColor[int] gives a colour from selection of nice shades";
 
-xkcdify::usage = "converts plot into xkcd styled plot: "; 
 RoundPlotTicks::usage = "Rounds[plot] rounds ticks and shows final look of the plot";
 StabiliseForPDF::usage = "Exports and reimports PDF to stabilise the image under export.";
 ToBlackBackground::usage = "converts an image plot to black background"
 
-(*error messages*)
-KPlots::errSameLength = "plotted data must be the same length as error array";
 
+(*error messages*)
+ListPlotErrors::imputNotMatrix = "Error: input should be a vector or a matrix";
+ListPlotErrors::oddInputShape = "Warning: input shape is not fully supported: `1`";
+ListPlotErrors::errorsNotMatrix = "Error: ErrorBars should be a vector or a matrix";
+ListPlotErrors::errSameLength = "Error: please supply the same number of errors (N=`1`) as data points(N=`2`)";
+
+
+(* deprecated: remove at some point *)
+
+ThesisTheme::usage = "Special theme for thesis. Scale it by 60% once imported to illustrator ";
+ThesisThemeSmall::usage = "Special theme for thesis. Scale it by 60% once imported to illustrator. Fits 2 fig in 13cm";
+OListPlot::usage = "OListPlot[data_, ErrorBars->..., opt->...] list plot for data in Origin style. Supports all sorts of markers and standard error-bars";
+OListPlot::deprecated = "OListPlot[] will be deprecated; please use ListPlotErrors[]."
 
 (* Implementations *)
 Begin["`Private`"]
@@ -57,16 +90,30 @@ SetOptions[ LinTicks,
 	NumberOfMinorTicks -> 1
 ];
 
-KPlotsTheme := { 
-	Frame -> True,
-	FrameStyle -> Directive[Black, 12, FontFamily -> "Helvetica Neue", AbsoluteThickness[1.0]],
-	FrameTicks ->
-    	{{LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &},
-     	 {LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &}},
-	GridLines -> None,
-	ImageSize -> 350
+
+(*designed to be imported to Illustrator and scaled by 60% *)
+ThesisTheme := {
+  Frame -> True,
+  FrameStyle -> Directive[Black, 8/0.6, FontFamily -> "Helvetica", AbsoluteThickness[1.0]],
+  FrameTicks ->
+      {{LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &},
+        {LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &}},
+  GridLines -> None,
+  ImageSize -> 350
 };
 
+(*designed to be imported to Illustrator and scaled by 60% *)
+ThesisThemeSmall := {
+  Frame -> True,
+  FrameStyle -> Directive[Black, 8/0.6, FontFamily -> "Helvetica", AbsoluteThickness[1.0]],
+  FrameTicks ->
+      {{LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &},
+        {LinTicks, LinTicks[#1, #2, ShowTickLabels -> False] &}},
+  GridLines -> None,
+  ImageSize -> 270
+};
+
+(*todo ???*)
 (* add a theme compatible with in-built ones *)
 System`PlotThemeDump`resolvePlotTheme["KPlots", "Plot" | "ListPlot"] :=
 	Themes`SetWeight[ KPlotsTheme, System`PlotThemeDump`$ComponentWeight];
@@ -115,126 +162,186 @@ KErrorBarFunction[size_] := Function[
 		];
 		Join[xline, yline]
 	]
-]
+];
 
-(* ==============================  ORIGIN PLOT WITH ERRORS ================================ *)
+(*Helper function for interpretting error bars*)
+InterpretErrorBarList[list_]:= Print["Could not interpret error bar: ",list];
+InterpretErrorBarList[list : {ErrorBar[_]...}] := list;
+InterpretErrorBarList[list : {ErrorBar[_,_]...}] := list;
+InterpretErrorBarList[list_List/;VectorQ[list,NumberQ]] := ErrorBar /@ list;
+InterpretErrorBarList[list : {{_, _}...}] := ErrorBar[ #[[1]] , #[[2]] ] &/@ list;
 
-Options[OListPlot] = Normal@Join[
-	(* Association@Options[ListPlot], *)
+
+
+(* ==============================  ListPlotErrors[] ================================ *)
+
+Options[ListPlotErrors] = Normal@Join[
+	Association@Options[ListPlot], 
 	Association@{
 		MaxPlotPoints->Infinity,
 		PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 13} , 
 		Mesh -> All,
 		Joined -> False,
 		PlotStyle -> Directive[Black],
-		PlotTheme -> "KPlots",
 		ErrorBars -> None,
+		"Errors" -> None,
 		ErrorBarWidth -> 1.4,
 		ErrorBarStyle -> AbsoluteThickness[1.2]
 	}	
 ];
 
-OListPlot[data_, opts: OptionsPattern[OListPlot]] := Module[
+
+(* Main plotting method for everything *)
+ListPlotErrors[input_, opts: OptionsPattern[ListPlotErrors]] := Module[
 	{
-		fullOpts = Join[ Association@Options[OListPlot], Association@{opts} ],
+		data, errors,
+		fullOpts = Join[ Association@Options[ListPlotErrors], Association@{opts} ],
 		errorsPlot, dataPlot
 	},
 
-	If[ !MatrixQ@data, Print["KPlots error: OListPlot data must be a matrix"]];
+	{data, errors} = helperPrepareInput[input, opts];	
+	(* Print[data]; Print[errors]; *)
+
 	dataPlot = ListPlot[
 		FilterWithinPlotRegion[ data , Lookup[fullOpts, PlotRange, None] ], 
 		Evaluate@FilterRules[ Normal@fullOpts, Options[ListPlot]]
 	];
 
-	errorsPlot = If[ ! VectorQ @ fullOpts[ErrorBars] , {} ,
-		If[Length @ fullOpts[ErrorBars] != Length @ data, Message[KPlots::errSameLength]];
-		errorData = Table[{ data[[i]] , ErrorBar[ fullOpts[ErrorBars][[i]] ]}, {i, Length[data]}];
+ 	errorsPlot = If[ errors === None, {} ,
+		errorData = Transpose@{ data , InterpretErrorBarList[errors]};
 		Graphics[ Flatten[ Join[ 
-			{fullOpts[PlotStyle]},
-			{fullOpts[ErrorBarStyle]},
-  			KErrorBarFunction[fullOpts[ErrorBarWidth]][#[[1]], #[[2]]] & /@ errorData
+			{OptionValue[PlotStyle]},
+			{OptionValue[ErrorBarStyle]},
+  			KErrorBarFunction[OptionValue[ErrorBarWidth]][#[[1]], #[[2]]] & /@ errorData
   		] , 1]   ]
-	];
+	]; 
   
 	Show[
+        (* ListPlot[{}, Evaluate@FilterRules[ Normal@fullOpts, Options[Graphics]]], *)
+        errorsPlot,
 		dataPlot,
-		errorsPlot,
-		dataPlot
-		(* Evaluate@FilterRules[ Normal@fullOpts, Options[Graphics]] (*does not work with PlotTheme*) *)
+		Evaluate@FilterRules[ Normal@fullOpts, Options[ListPlot]]
 	]
 ];
 
 
-(* ==============================  MODERN PLOT WITH ERRORS ================================ *)
+(*function sorts data and and errors. Returns: {data, errors} *)
+helperPrepareInput[input_, opts: OptionsPattern[ListPlotErrors]] := Module[
+	{
+		data = Normal[input],
+		errors = None,
+		points
+	},
 
-Options[KListPlot] = Normal@Join[
-	(* Association@Options[ListPlot], *)
-	Association@{
-		MaxPlotPoints->Infinity,
-		PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 14},
-		MeshShading -> {Red,Blue},
-		Mesh -> All,
-		Joined -> True,
-		PlotStyle -> Directive[KColor[5]],
-		PlotTheme -> "KPlots",
-		ErrorBars -> None,
-		ErrorBarPlotStyle -> Directive[Orange, Thin],
-		ErrorBarPlotStyleFilling -> Directive[Orange, Opacity[0.1]],
-		ErrorBarInterpolationOrder -> 2
-	}	
+	If[ !(MatrixQ[data] || VectorQ[data]), Message[ListPlotErrors::imputNotMatrix]; Abort[]];
+	If[ MatrixQ[data] && Dimensions[data][[2]] > 4 , Message[ListPlotErrors::oddInputShape, Dimensions[data]]];
+	points = If[ MatrixQ[data], data[[All, {1,2}]] , data];
+
+	errors = If[errors === None, OptionValue[ ErrorBars], errors];
+	errors = If[errors === None, OptionValue["Errors"], errors];
+	errors = If[errors === None, getErrorsFromInput[data],     errors];
+	If[ errors =!= None && !(MatrixQ[errors] || VectorQ[errors]), 
+		Message[ListPlotErrors::errorsNotMatrix]; Abort[]];
+
+	If[errors =!= None && Length[points] =!= Length[errors],
+		Message[ListPlotErrors::errSameLength, Length[errors], Length[points]]; Abort[] ];
+
+	Return[	{points, errors} ]
 ];
 
 
-KListPlot[data_, opts: OptionsPattern[]] := Module[ 
-	{
-		fullOpts = Join[ Association@Options[KListPlot], Association@{opts} ],
-		errorData, errorsPlot
-	},
-  
-	errorsPlot = If[ ! VectorQ @ fullOpts[ErrorBars] , {},
-		If[Length @ fullOpts[ErrorBars] != Length @ data, Message[KPlots::errSameLength]];
-		errorData = Transpose @ {data[[;; , 1]] , data[[;; , 2]] - fullOpts[ErrorBars], data[[;; , 2]] + fullOpts[ErrorBars]} ;
-		ListPlot[{errorData[[;; , {1, 2}]], errorData[[;; , {1, 3}]]},
-			Filling -> {1 -> {2}},
-			Joined -> True ,
-			InterpolationOrder -> fullOpts[ErrorBarInterpolationOrder],
-			FillingStyle -> fullOpts[ErrorBarPlotStyleFilling],
-			PlotStyle -> fullOpts[ErrorBarPlotStyle]
-		]
-	];
+(* returns errors if they were passed with data and None otherwise *)
+getErrorsFromInput[data_]:= Which[ 
+	Length[ Dimensions[data] ] == 2 && Dimensions[data][[2]] == 3 ,
+		(* if there are [[All,3]] interpret them as errors *)
+		data[[All, 3]],
+	Length[ Dimensions[data] ] == 2 &&  Dimensions[data][[2]] == 4,
+		(* if there are [[All,4]] interpret them as errors *)
+		data[[All, {3,4}]],
+    True,(*else return None*)
+		None
+];
 
-  	Show[
-		errorsPlot,
-		ListPlot[data, 
-			Evaluate@FilterRules[ Normal@fullOpts, Options[ListPlot]]
-		],
-		KPlotsTheme,
-		Evaluate@FilterRules[ Normal@fullOpts,  Options[Graphics]]
-  ]
-]
 
-(* ==============================  MODERN PLOT ================================ *)
 
-(*deprecated*)
-KPlot[any__] := Module[ 
-	{range},
-	(* slow because draws twice*)
-	range =  PlotRange /. InputForm[ Plot[Evaluate@any] ][[1,2]] ;
-	Plot[Evaluate@any, RegionFunction -> IsWithinPlotRegion@range, Evaluate@KPlotsTheme ] 
-]
+(* ==============================  ScienceTheme  ================================ *)
+
+Options[ScienceTheme] = {
+		"Size" -> 8.0,
+		"Labels" -> True,
+		"xticks" -> Automatic,
+		"yticks" -> Automatic,
+		"Trim" -> False,
+		FontSize -> 8,
+		"Scaling" -> 0.6 (*Mathematica to Export scaling*)
+	};
+
+
+(* make it viewable in Mathematica and print in CM *)
+ScienceTheme[opts: OptionsPattern[ScienceTheme]] := {
+  Frame -> True,
+  FrameStyle -> Directive[  Black, 
+  							FontSize -> OptionValue[FontSize]/OptionValue["Scaling"], 
+  							FontFamily -> "Helvetica", 
+  							AbsoluteThickness[1.0]
+  						 ],
+  FrameTicks -> generateTicks[OptionValue["Size"] , OptionValue["Labels"], OptionValue["xticks"], OptionValue["yticks"]],
+  ImagePadding -> If[ OptionValue["Trim"],
+  	{{1 , 1}, {1, 1}},
+  	{{66*OptionValue[FontSize]/8 , 10}, {40*OptionValue[FontSize]/8, 7}}
+  ],
+  Axes -> False,
+  GridLines -> None,
+  ImageSize -> 380*OptionValue["Size"]/8.0
+};
+
+
+ScienceThemeSmall[opts: OptionsPattern[ScienceTheme]] := ScienceTheme["Size" -> 4.5, FontSize -> 7, opts];
+
+
+generateTicks[size_, labels_, Automatic, Automatic] := 
+	{{LinTicks[#1, #2, ShowTickLabels -> labels, TickLengthScale -> 0.9/size*8.0] &  ,
+	  LinTicks[#1, #2, ShowTickLabels -> False, TickLengthScale ->  0.9/size*8.0] & },
+     {LinTicks[#1, #2, ShowTickLabels -> labels, TickLengthScale -> 0.9/size*8.0] &  ,
+	  LinTicks[#1, #2, ShowTickLabels -> False, TickLengthScale ->  0.9/size*8.0] & } 
+};
+
+generateTicks[size_, labels_, xticks_, yticks_] := 
+	{{LinTicks[yticks, ShowTickLabels -> labels, TickLengthScale -> 0.9/size*8.0] &  ,
+	  LinTicks[yticks, ShowTickLabels -> False, TickLengthScale ->  0.9/size*8.0] & },
+     {LinTicks[xticks, ShowTickLabels -> labels, TickLengthScale -> 0.9/size*8.0] &  ,
+	  LinTicks[xticks, ShowTickLabels -> False, TickLengthScale ->  0.9/size*8.0] & } 
+};
+
+generateTicks[size_, labels_, Automatic, yticks_] := 
+	{{LinTicks[yticks, ShowTickLabels -> labels, TickLengthScale -> 0.9/size*8.0] &  ,
+	  LinTicks[yticks, ShowTickLabels -> False, TickLengthScale ->  0.9/size*8.0] & },
+     {LinTicks[#1, #2, ShowTickLabels -> labels, TickLengthScale -> 0.9/size*8.0] &  ,
+	  LinTicks[#1, #2, ShowTickLabels -> False, TickLengthScale ->  0.9/size*8.0] & } 
+};
+
+generateTicks[size_, labels_, xticks_, Automatic] := 
+	{{LinTicks[#1, #2, ShowTickLabels -> labels, TickLengthScale -> 0.9/size*8.0] &  ,
+	  LinTicks[#1, #2, ShowTickLabels -> False, TickLengthScale ->  0.9/size*8.0] & },
+     {LinTicks[xticks, ShowTickLabels -> labels, TickLengthScale -> 0.9/size*8.0] &  ,
+	  LinTicks[xticks, ShowTickLabels -> False, TickLengthScale ->  0.9/size*8.0] & } 
+};
+
 
 
 
 (* ==============================  FAST LIST PLOT  ================================ *)
-
 (* from: http://mathematica.stackexchange.com/questions/140/listplot-plotting-large-data-fast *)
+
 FastListPlot[data_, opts:OptionsPattern[]] := Module[
     {interp},
     interp=Interpolation[data];
     Plot[interp[x],{x,interp[[1,1,1]],interp[[1,1,2]]},opts]
 ]
 
+
 (* ==============================  COLORS ================================ *)
+
 
 KColor[i_Integer] := Switch[ i, 
 	1, RGBColor[ 54/255,  54/255,  54/255],
@@ -250,6 +357,7 @@ KColor[i_Integer] := Switch[ i,
 
 (* function rounds plots ticks and also makes it loo like the final PDF plot *)
 (* from http://mathematica.stackexchange.com/questions/58866/how-to-round-tick-line-ends-in-the-plots *)
+
 RoundPlotTicks[plot_] := 
 	First@ImportString[ExportString[plot, "PDF"], "PDF"] /. 
 		JoinedCurve[{{{0, 2, 0}}}, x_, 
@@ -259,7 +367,7 @@ RoundPlotTicks[plot_] :=
 StabiliseForPDF[plot_] := First@ImportString[ExportString[plot, "PDF"], "PDF"];
 
 
-(* ==============================  COLORS ================================ *)
+(* ==============================  ??? ================================ *)
 
 RectMarker[size_] := Rectangle[{{-size/2,-size/2},{size/2,size/2}}];
 
@@ -283,37 +391,58 @@ IsWithinPlotRegion[{{xMin_?NumericQ, xMax_?NumericQ}, {yMin_?NumericQ, yMax_?Num
 IsWithinPlotRegion[ {yMin_?NumericQ, yMax_?NumericQ}] := 
 	IsWithinPlotRegion[{{-Infinity, Infinity}, {yMin, yMax}}]
 
-(* ==============================  xkcd PLOT - for fun ================================ *)
 
-(* xkcd plots from : http://mathematica.stackexchange.com/questions/11350/xkcd-style-graphs*)
-(*Thanks to belisarius& J.M.for refactoring*)
+(* =========================== BACKWARDS COMPATIBILITY ============================= *)
 
-split[{a_, b_}] := If[ a == b, 
-	{b}, 
-	With[{n = Ceiling[3 Norm[a - b]]}, Array[{n - #, #}/n &, n].{a, b}]
+Options[OListPlot] = Normal@Join[
+	(* Association@Options[ListPlot], *)
+	Association@{
+		MaxPlotPoints->Infinity,
+		PlotMarkers -> {Graphics`PlotMarkers[][[2, 1]], 13} , 
+		Mesh -> All,
+		Joined -> False,
+		PlotStyle -> Directive[Black],
+		PlotTheme -> "KPlots",
+		ErrorBars -> None,
+		ErrorBarWidth -> 1.4,
+		ErrorBarStyle -> AbsoluteThickness[1.2]
+	}	
 ];
 
-partition[{x_, y__}] := Partition[{x, x, y}, 2, 1];
+(*deprecated*)
+OListPlot[data_, opts: OptionsPattern[OListPlot]] := Module[
+	{
+		fullOpts = Join[ Association@Options[OListPlot], Association@{opts} ],
+		errorsPlot, dataPlot
+	},
+	Message[OListPlot::deprecated];
 
-nudge[L : {a_, b_}, d_] := Mean@L + d Cross[a - b];
+	If[ !MatrixQ@data, Print["KPlots error: OListPlot data must be a matrix"]];
+	dataPlot = ListPlot[
+		FilterWithinPlotRegion[ data , Lookup[fullOpts, PlotRange, None] ], 
+		Evaluate@FilterRules[ Normal@fullOpts, Options[ListPlot]]
+	];
 
-gap = {style__, x_BSplineCurve} :> {{White, AbsoluteThickness[10], x},
-     style, AbsoluteThickness[2], x};
-
-wiggle[pts : {{_, _} ..}, 
-  d_: {-0.15, 0.15}] := ## &[#~nudge~RandomReal@d, #[[2]]] & /@ 
-  partition[Join @@ split /@ partition@pts]
-
-xkcdify[plot_Graphics] := 
- Show[FullGraphics@plot, 
-    TextStyle -> {17, FontFamily -> "Humor Sans"}] /. 
-   Line[pts_] :> {AbsoluteThickness[2], BSplineCurve@wiggle@pts} // 
-  MapAt[# /. gap &, #, {1, 1}] &
-
-ToBlackBackground[img_Image] :=  
-  ImageApply[{Mod[#[[1]] + 0.5, 1], #[[2]], #[[3]]} &,  ColorConvert[ColorNegate@img, "HSB"]]
+	errorsPlot = If[ ! ListQ @ fullOpts[ErrorBars] , {} ,
+		If[Length @ fullOpts[ErrorBars] != Length @ data, Message[KPlots::errSameLength]];
+		errorData = Transpose@{ data , InterpretErrorBarList[fullOpts[ErrorBars]]};
+		Graphics[ Flatten[ Join[ 
+			{fullOpts[PlotStyle]},
+			{fullOpts[ErrorBarStyle]},
+  			KErrorBarFunction[fullOpts[ErrorBarWidth]][#[[1]], #[[2]]] & /@ errorData
+  		] , 1]   ]
+	];
+  
+	Show[
+		dataPlot,
+		errorsPlot,
+		dataPlot
+		(* Evaluate@FilterRules[ Normal@fullOpts, Options[Graphics]] (*does not work with PlotTheme*) *)
+	]
+];
 
 
 End[ ]
+
 
 EndPackage[ ]
